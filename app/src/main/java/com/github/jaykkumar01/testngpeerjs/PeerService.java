@@ -36,8 +36,11 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PeerService extends Service implements Data, PeerListener {
+    public static ExecutorService executorService = Executors.newSingleThreadExecutor();
     private WebView webView;
     private UserData userData;
     public static PeerListener listener;
@@ -64,7 +67,7 @@ public class PeerService extends Service implements Data, PeerListener {
         setupWebView();
 
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Buffer Size: "+ BUFFER_SIZE_IN_BYTES + " bytes", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "Buffer Size: "+ BUFFER_SIZE_IN_BYTES + " bytes", Toast.LENGTH_SHORT).show();
 
         }
         audioRecord = new AudioRecord(
@@ -204,6 +207,7 @@ public class PeerService extends Service implements Data, PeerListener {
         }
         if (isRecording){
             stopRecording();
+            audioTrack.stop();
         }
         stopSelf();
     }
@@ -229,6 +233,7 @@ public class PeerService extends Service implements Data, PeerListener {
 
     public class JavaScriptInterface {
 
+
         @JavascriptInterface
         public void send(String msg) {
             Toast.makeText(PeerService.this, msg, Toast.LENGTH_SHORT).show();
@@ -239,7 +244,13 @@ public class PeerService extends Service implements Data, PeerListener {
         }
         @JavascriptInterface
         public void play(byte[] bytes) {
-            audioTrack.write(bytes, 0, BUFFER_SIZE_IN_BYTES);
+            executorService.execute(new Runnable() {
+                @Override
+                public void run() {
+                    audioTrack.write(bytes, 0, BUFFER_SIZE_IN_BYTES);
+                }
+            });
+
         }
         @JavascriptInterface
         public void receiveFile(byte[] bytes) {
