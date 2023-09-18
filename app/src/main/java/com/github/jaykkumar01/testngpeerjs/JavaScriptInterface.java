@@ -2,9 +2,14 @@ package com.github.jaykkumar01.testngpeerjs;
 
 import android.content.Context;
 import android.media.AudioTrack;
+import android.os.Build;
+import android.os.Environment;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -48,6 +53,22 @@ public class JavaScriptInterface implements Data{
     public void send(String msg) {
         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
     }
+
+    private void saveBytesToFile(byte[] bytes, int read) {
+        try {
+            File externalDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            File filePath = new File(externalDir, "testing/received_audio.pcm");
+            File destPath = new File(externalDir, "testing/received_audio.wav");
+            FileOutputStream fos = new FileOutputStream(filePath, true); // Use "true" to append to the existing file
+            fos.write(bytes, 0, read);
+            fos.close();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PCM.rawToWave(filePath,destPath,SAMPLE_RATE);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
     @JavascriptInterface
     public void play(String id,byte[] bytes, int read, long millis) {
         executorService.execute(new Runnable() {
@@ -69,6 +90,7 @@ public class JavaScriptInterface implements Data{
 
                 int divider = (int) Math.max(1, diff / delay);
                 audioTrack.write(bytes,0,read/divider);
+                saveBytesToFile(bytes,read/divider);
 
 //                if (divider == 1){
 //                    audioTrack.write(bytes,0,read/divider);

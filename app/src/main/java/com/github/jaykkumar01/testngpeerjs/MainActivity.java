@@ -280,4 +280,9 @@ public class MainActivity extends AppCompatActivity implements Listener{
         startRecord.setVisibility(View.VISIBLE);
         view.setVisibility(View.GONE);
     }
+
+    public void record(View view) {
+        Intent intent = new Intent(this,RecordingActivity.class);
+        startActivity(intent);
+    }
 }

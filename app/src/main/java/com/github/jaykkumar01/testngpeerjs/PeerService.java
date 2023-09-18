@@ -58,6 +58,7 @@ public class PeerService extends Service implements Data, PeerListener {
     private long time;
     private int count;
     private long max;
+    FileOutputStream outputStream;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -143,9 +144,19 @@ public class PeerService extends Service implements Data, PeerListener {
     private void startRecording() {
         isRecording = true;
         audioRecord.startRecording();
+
         executorService.execute(new Runnable() {
             @Override
             public void run() {
+
+                try {
+                    File externalDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    File filePath = new File(externalDir, "testing/"+System.currentTimeMillis()+".pcm");
+                    outputStream = new FileOutputStream(filePath);
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+
                 byte[] buffer = new byte[BUFFER_SIZE_IN_BYTES];
                 while (isRecording) {
                     count++;
@@ -157,6 +168,16 @@ public class PeerService extends Service implements Data, PeerListener {
 
                     long millis = System.currentTimeMillis();
                     int read = audioRecord.read(buffer, 0, BUFFER_SIZE_IN_BYTES);
+
+                    if (read != AudioRecord.ERROR_INVALID_OPERATION) {
+                        try {
+                            outputStream.write(buffer, 0, read);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+
 
 
                     String str = objToString(Arrays.toString(buffer),read,millis);
@@ -183,6 +204,7 @@ public class PeerService extends Service implements Data, PeerListener {
 
 
 
+
 //                    audioTrack.write(buffer, 0, read);
                 }
             }
@@ -205,6 +227,11 @@ public class PeerService extends Service implements Data, PeerListener {
     private void stopRecording() {
         isRecording = false;
         audioRecord.stop();
+        try {
+            outputStream.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 //        audioTrack.stop();
     }
 
