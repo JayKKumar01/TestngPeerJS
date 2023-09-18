@@ -12,4 +12,6 @@ public interface PeerListener {
 
     void startUploading();
     void stopUploading();
+
+    void onConnected();
 }

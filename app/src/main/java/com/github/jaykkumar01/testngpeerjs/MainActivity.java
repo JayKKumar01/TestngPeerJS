@@ -6,6 +6,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -13,6 +14,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.ContactsContract;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -37,11 +39,18 @@ public class MainActivity extends AppCompatActivity implements Listener{
     String[] permissions = {Manifest.permission.RECORD_AUDIO};
     public static Listener listener;
     AppCompatButton startRecord,stopRecord;
+    private int countSum;
+    private int count;
+    private long maxVal;
+    private long sum;
+    private boolean edited;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         editText = findViewById(R.id.editText);
 
         startRecord = findViewById(R.id.btnStartRecording);
@@ -168,24 +177,87 @@ public class MainActivity extends AppCompatActivity implements Listener{
     }
 
     @Override
-    public void onLoad(int progress) {
+    public void onLoad(String str,int val) {
         AppCompatButton button = findViewById(R.id.btnSendFile);
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                button.setText(progress+"");
-            }
-        });
+        setBtnText(button,str+": "+val);
 
     }
 
     @Override
     public void onRead(String read) {
-        AppCompatButton button = findViewById(R.id.btnSendFile);
+        
+        EditText editText = findViewById(R.id.editText);
+//        if (edited){
+//            return;
+//        }else{
+//            edited = true;
+//        }
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                button.setText(read);
+                editText.setText(read);
+            }
+        });
+
+//        File externalDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+//        File file = new File(externalDir, "testing/1.txt");
+//        read += "\n";
+//
+//        try {
+//            FileOutputStream outputStream = new FileOutputStream(file,true);
+//            outputStream.write(read.getBytes());
+//            outputStream.close();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+
+
+//        AppCompatButton button = findViewById(R.id.btnSendFile);
+//        runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                button.setText(++count +"");
+//            }
+//        });
+    }
+
+    @Override
+    public void onConvert(long time, String str) {
+        AppCompatButton buttonVal = findViewById(R.id.btnVal);
+        AppCompatButton buttonMaxVal = findViewById(R.id.btnMaxVal);
+        if (time > maxVal){
+            setBtnText(buttonMaxVal,"Max: "+time);
+            maxVal = time;
+        }
+        sum += time;
+
+        if (++countSum == 10){
+            setBtnText(buttonVal,"Val: "+(sum/10));
+            countSum = 0;
+            sum = 0;
+        }
+
+
+
+    }
+
+    @Override
+    public void onSingleRead(String str, int val) {
+        AppCompatButton btn = findViewById(R.id.sendBtn);
+        setBtnText(btn,str+": "+val);
+    }
+
+    @Override
+    public void onNetwork(String str) {
+        AppCompatButton btn = findViewById(R.id.btnStop);
+        setBtnText(btn,str);
+    }
+
+    private void setBtnText(AppCompatButton button, String str) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                button.setText(str);
             }
         });
     }

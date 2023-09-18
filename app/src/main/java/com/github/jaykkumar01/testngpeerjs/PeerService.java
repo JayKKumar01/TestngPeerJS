@@ -11,6 +11,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
@@ -35,41 +36,35 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class PeerService extends Service implements Data, PeerListener {
-    public static ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private WebView webView;
-    private UserData userData;
+    WebView webView;
+
+    ExecutorService executorService = Executors.newSingleThreadExecutor();
     public static PeerListener listener;
-    int count = 0;
-
-    private static final int SAMPLE_RATE = 44100;
-    private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
-    private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
-    private static final int BUFFER_SIZE_IN_BYTES = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
-//    private static final int BUFFER_SIZE_IN_BYTES = 16 * 1024;
-
     private AudioRecord audioRecord;
     private AudioTrack audioTrack;
 
-    private boolean isRecording = false;
+    public static boolean isRecording = false;
     private NotificationManager notificationManager;
-    Handler handler;
+    Handler handler = new Handler();
+    private UserData userData;
+    private long time;
+    private int count;
+    private long max;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         listener = this;
         createNotification();
         userData = (UserData) intent.getSerializableExtra(getString(R.string.userdata));
-        setupWebView();
 
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            //Toast.makeText(this, "Buffer Size: "+ BUFFER_SIZE_IN_BYTES + " bytes", Toast.LENGTH_SHORT).show();
-
-        }
         audioRecord = new AudioRecord(
                 MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE,
@@ -85,11 +80,19 @@ public class PeerService extends Service implements Data, PeerListener {
                 BUFFER_SIZE_IN_BYTES,
                 AudioTrack.MODE_STREAM);
         audioTrack.play();
-        handler = new Handler(Looper.getMainLooper());
+
+
+        setupWebView();
+
+
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            //Toast.makeText(this, "Buffer Size: "+ BUFFER_SIZE_IN_BYTES + " bytes", Toast.LENGTH_SHORT).show();
+
+        }
+
 
         return START_STICKY;
     }
-
     @SuppressLint("SetJavaScriptEnabled")
     private void setupWebView() {
         webView = new WebView(this);
@@ -113,7 +116,7 @@ public class PeerService extends Service implements Data, PeerListener {
             }
 
         });
-        webView.addJavascriptInterface(new JavaScriptInterface(), "Android");
+        webView.addJavascriptInterface(new JavaScriptInterface(this,audioTrack), "Android");
 
         WebSettings webSettings = webView.getSettings();
         webSettings.setDomStorageEnabled(true);
@@ -125,35 +128,76 @@ public class PeerService extends Service implements Data, PeerListener {
 
     }
 
+    public void callJavaScript(String func) {
+        webView.evaluateJavascript(func, null);
+//        handler.post(new Runnable() {
+//            @Override
+//            public void run() {
+//                webView.evaluateJavascript(func, null);
+//            }
+//        });
+
+    }
+
+
     private void startRecording() {
         isRecording = true;
         audioRecord.startRecording();
-
-
-
-
-
-//        audioTrack.play();
-        new Thread(new Runnable() {
+        executorService.execute(new Runnable() {
             @Override
             public void run() {
                 byte[] buffer = new byte[BUFFER_SIZE_IN_BYTES];
-                int i = 0;
                 while (isRecording) {
+                    count++;
+                    boolean isOneSecond = false;
+                    if (System.currentTimeMillis()-time >= 1000){
+                        time = System.currentTimeMillis();
+                        isOneSecond = true;
+                    }
+
+                    long millis = System.currentTimeMillis();
                     int read = audioRecord.read(buffer, 0, BUFFER_SIZE_IN_BYTES);
 
+
+                    String str = objToString(Arrays.toString(buffer),read,millis);
+
+                    if (isOneSecond){
+                        MainActivity.listener.onRead(count+" times,"+str);
+                        count = 0;
+                    }
+
+
+//                    MainActivity.listener.onLoad((read == BUFFER_SIZE_IN_BYTES)+"",read);
+                    if (!Base.isNetworkAvailable(PeerService.this)){
+                        MainActivity.listener.onNetwork("Network: "+false +" "+System.currentTimeMillis());
+                        continue;
+                    }else{
+                        MainActivity.listener.onNetwork("Network: "+true +" "+System.currentTimeMillis());
+                    }
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            callJavaScript("javascript:sendFile("+Arrays.toString(buffer) +")");
+                            callJavaScript("javascript:sendFile("+ str +")");
                         }
                     });
 
+
+
 //                    audioTrack.write(buffer, 0, read);
-//                    MainActivity.listener.onRead(++i + ": "+read);
                 }
             }
-        }).start();
+        });
+    }
+
+    private String objToString(Object... items) {
+        StringBuilder str = new StringBuilder();
+        for (int i = 0; i < items.length; i++) {
+            str.append(items[i]);
+            if (i < items.length - 1) {
+                str.append(",");
+            }
+        }
+        return str.toString();
     }
 
 
@@ -167,7 +211,6 @@ public class PeerService extends Service implements Data, PeerListener {
     @Override
     public void onJoin() {
         callJavaScript("javascript:connect(\""+ userData.getOtherUser() +"\")");
-//        startRecording();
     }
 
     @Override
@@ -179,18 +222,18 @@ public class PeerService extends Service implements Data, PeerListener {
     public void onSend(File file) {
 //        byte[] bytes = Base.convertToBytes(file);
 //        callJavaScript("javascript:sendFile("+ Arrays.toString(bytes) +")");
-        try {
-            FileInputStream inputStream = new FileInputStream(file);
-            byte[] buffer = new byte[16 * 1024];
-
-            while ((inputStream.read(buffer)) > 0) {
-                callJavaScript("javascript:sendFile("+ Arrays.toString(buffer) +")");
-                count++;
-            }
-            inputStream.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            FileInputStream inputStream = new FileInputStream(file);
+//            byte[] buffer = new byte[16 * 1024];
+//
+//            while ((inputStream.read(buffer)) > 0) {
+//                callJavaScript("javascript:sendFile("+ Arrays.toString(buffer) +")");
+//                count++;
+//            }
+//            inputStream.close();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
 
 
 //        callJavaScript("javascript:sendFile("+ Arrays.toString(bytes) +")");
@@ -202,11 +245,14 @@ public class PeerService extends Service implements Data, PeerListener {
             webView.loadUrl("");
             Toast.makeText(this, "Disconnected!", Toast.LENGTH_SHORT).show();
         }
+
         if (notificationManager != null) {
             notificationManager.cancelAll();
         }
         if (isRecording){
             stopRecording();
+        }
+        if (audioTrack != null){
             audioTrack.stop();
         }
         stopSelf();
@@ -231,53 +277,9 @@ public class PeerService extends Service implements Data, PeerListener {
         }
     }
 
-    public class JavaScriptInterface {
-
-
-        @JavascriptInterface
-        public void send(String msg) {
-            Toast.makeText(PeerService.this, msg, Toast.LENGTH_SHORT).show();
-        }
-        @JavascriptInterface
-        public void answer() {
-            //startRecording();
-        }
-        @JavascriptInterface
-        public void play(byte[] bytes) {
-            executorService.execute(new Runnable() {
-                @Override
-                public void run() {
-                    audioTrack.write(bytes, 0, BUFFER_SIZE_IN_BYTES);
-                }
-            });
-
-        }
-        @JavascriptInterface
-        public void receiveFile(byte[] bytes) {
-            MainActivity.listener.onLoad(count);
-
-            File externalDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            File file = new File(externalDir, "testing/2.mp4");
-            try {
-                FileOutputStream outputStream = new FileOutputStream(file,true);
-                outputStream.write(bytes);
-                outputStream.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-
-//            boolean done = Base.writeToFile(bytes,file);
-
-
-            if (--count < 2) {
-
-                Toast.makeText(PeerService.this, "File saved!", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-    public void callJavaScript(String func) {
-        webView.evaluateJavascript(func, null);
+    @Override
+    public void onConnected() {
+        startRecording();
     }
 
     private void createNotification() {
@@ -329,6 +331,21 @@ public class PeerService extends Service implements Data, PeerListener {
 
 
 
+    private void playVoicePlayer(File audioFile) {
+        MediaPlayer mediaPlayer = new MediaPlayer();
+        try {
+            mediaPlayer.setDataSource(audioFile.getAbsolutePath());
+            mediaPlayer.prepare();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Prepare the MediaPlayer
+
+
+        // Start playing the audio
+        mediaPlayer.start();
+    }
 
 
 

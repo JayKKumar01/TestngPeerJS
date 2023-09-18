@@ -6,6 +6,17 @@
     android:layout_height="match_parent"
     android:background="@color/white"
     tools:context=".MainActivity">
+    <EditText
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:id="@+id/editText"
+        app:layout_constraintVertical_bias="1"
+        android:textColor="@color/black"
+        android:textSize="15sp"
+        app:layout_constraintTop_toBottomOf="@+id/btnStop"
+        app:layout_constraintBottom_toBottomOf="@id/sendBtn"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/sendBtn"/>
     <androidx.appcompat.widget.AppCompatButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -76,8 +87,39 @@
         android:id="@+id/btnStartRecording"
         app:layout_constraintHorizontal_bias="0"
         android:layout_marginStart="20dp"
+        android:visibility="gone"
         android:text="Start Recording"
         android:onClick="startRecording"
+        android:textColor="@color/white"
+        android:background="#3949AB"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"/>
+    <androidx.appcompat.widget.AppCompatButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnMaxVal"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintVertical_bias=".8"
+        android:layout_marginStart="20dp"
+        android:text="Max: 0"
+        android:visibility="gone"
+        android:textColor="@color/white"
+        android:background="#3949AB"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"/>
+    <androidx.appcompat.widget.AppCompatButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnVal"
+        app:layout_constraintHorizontal_bias="1"
+        app:layout_constraintVertical_bias=".8"
+        android:layout_marginEnd="20dp"
+        android:text="Val: 0"
+        android:visibility="gone"
         android:textColor="@color/white"
         android:background="#3949AB"
         app:layout_constraintTop_toTopOf="parent"
@@ -90,6 +132,7 @@
         android:id="@+id/btnStopRecording"
         app:layout_constraintHorizontal_bias="1"
         android:layout_marginEnd="20dp"
+        android:visibility="gone"
         android:text="Stop Recording"
         android:onClick="stopRecording"
         android:textColor="@color/white"
@@ -113,17 +156,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"/>
-    <EditText
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:id="@+id/editText"
-        app:layout_constraintVertical_bias="1"
-        android:textColor="@color/black"
-        android:textSize="15sp"
-        app:layout_constraintTop_toTopOf="@id/sendBtn"
-        app:layout_constraintBottom_toBottomOf="@id/sendBtn"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toLeftOf="@id/sendBtn"/>
+
     <androidx.appcompat.widget.AppCompatButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
